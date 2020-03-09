@@ -1,0 +1,97 @@
+#lang racket
+
+(define maquina 1)
+(define jugador 2)
+
+(define matriz (list (list 0 0 0 1 1 1 1)
+                     (list 0 0 1 1 1 0 0)
+                     (list 0 1 0 1 0 1 0)
+                     (list 1 0 0 1 0 0 1)
+                     (list 0 0 0 0 0 0 0)
+                     (list 0 0 2 2 2 2 0)))
+
+(define (eval tablero)
+  (- (sumar-pesos 0 0 maquina 0 tablero)
+     (sumar-pesos 0 0 jugador 0 tablero)))
+
+(define (sumar-pesos fila columna turno peso tablero)
+  (cond [(and (= fila 5) (= columna 7)) peso]
+        [(and (< fila 5) (= columna 7)) (sumar-pesos (add1 fila) 0 turno peso tablero)]
+        [else (if (< columna 4) (set! peso (+ peso (peso-fila fila columna turno tablero)))
+                                empty)
+              (if (< fila 3) (set! peso (+ peso (peso-columna fila columna turno tablero)))
+                             empty)
+              (if (and (< fila 3) (> columna 2))
+                  (set! peso (+ peso (peso-diagonal-izq fila columna turno tablero)))
+                  empty)
+              (if (and (< fila 3) (< columna 4))
+                  (peso-diagonal-der fila columna turno tablero)
+                  empty)
+              (sumar-pesos fila (add1 columna) turno peso tablero)]))
+
+(define (peso-fila fila columna turno nodo)
+  (if (not(equal? (list-ref (list-ref nodo fila) columna) turno))
+      0
+      (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 1)) turno))
+          (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 1)) 0))
+              0
+              (if (and (equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno)
+                       (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno))
+                  100
+                  0))
+          (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno))
+              (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) 0))
+                  0
+                  (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
+                      100
+                      10))
+              (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
+                  1000
+                  (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) 0)
+                      100
+                      0))))))
+
+(define (peso-columna fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) columna) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) columna) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) turno)
+                1000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) 0)
+                    100
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) columna) 0)
+                    10
+                    0))
+        0)
+     0))
+
+(define (peso-diagonal-izq fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) (- columna 1)) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) turno)
+                1000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) 0)
+                    100
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) 0)
+                    10
+                    0))
+        0)
+     0))
+
+(define (peso-diagonal-der fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) (+ columna 1)) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) turno)
+                1000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) 0)
+                    100
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) 0)
+                    10
+                    0))
+        0)
+     0))
