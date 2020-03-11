@@ -1,5 +1,5 @@
 #lang racket
-
+(require rnrs/mutable-pairs-6)
 
 (define matriz (list (list 0 0 0 0 0 0 0)
                      (list 0 0 0 0 0 0 0)
@@ -21,8 +21,6 @@
 
 (define arbol (make-tree matriz '())) ;Se crea un arbol con una matriz de 0 en su raíz
 
-(define arbol-prueba (make-tree 1 '())) ;Se crea un arbol con una matriz de 0 en su raíz
-
 (define (create-tree-level tree) ;Se agregan 7 nodos hoja de matriz en 0
   (for ([i 7])
     (set! tree (append tree(list (make-leaf-tree matriz))))
@@ -31,6 +29,7 @@
 )
 
 
+;(create-tree-level arbol)
 
 #|
 (define prueba (list 1 2 3 4 5))
@@ -46,7 +45,7 @@
     )
 )
     
-;(writeln (change-list-value (list 1 2 3 4 5) 4 7))
+(writeln (change-list-value (list 1 2 3 4 5) 4 7))
 
 
 ;(define tree 
