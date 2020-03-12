@@ -1,0 +1,180 @@
+#lang racket
+
+(define maquina 1)
+(define jugador 2)
+(define altura 4)
+(define alfa -10000)
+(define beta 10000)
+(define maximo -10000)
+(define mejor-columna -1)
+
+(define matriz (list (list 1 1 0 0 0 0 0)
+                     (list 2 0 0 0 0 0 0)
+                     (list 2 0 0 0 0 0 0)
+                     (list 2 0 0 0 0 0 0)
+                     (list 0 0 0 0 0 0 0)
+                     (list 0 0 0 0 0 0 0)))
+
+;Inicio minimax
+
+(define (minimax tablero max-actual columna)
+  (cond [(> columna 6)
+             mejor-columna]
+        [else (if (equal? (inicio) "max")
+              (set! max-actual (valor-max (insert-new-token tablero maquina columna 0) altura -10000 10000 0))
+              (set! max-actual (valor-min (insert-new-token tablero maquina columna 0) altura -10000 10000 0)))
+              (cond [(> max-actual maximo)
+                     (set! maximo max-actual)
+                     (set! mejor-columna columna)
+                     (minimax tablero max-actual (add1 columna))]
+                    [else (minimax tablero max-actual (add1 columna))])]))
+
+(define (inicio)
+  (if (equal? maquina 1)
+      "max"
+      "min"))
+
+(define (valor-min tablero nivel alfa beta columna)
+  (cond [(equal? nivel 0)
+         (eval tablero)]
+        [(> columna 6)
+         beta]
+        [else (let ([resultado 0])
+                (set! resultado (insert-new-token tablero jugador columna 0))
+                (if (equal? resultado empty)
+                    (set! resultado (eval tablero))
+                    (set! resultado (valor-max resultado (- nivel 1) -10000 10000 0)))
+                (set! beta (min beta resultado))
+                (if (>= alfa beta)
+                    alfa
+                    (valor-min tablero nivel alfa beta (add1 columna))))]))
+
+(define (valor-max tablero nivel alfa beta columna)
+  (cond [(equal? nivel 0)
+         (eval tablero)]
+        [(> columna 6)
+         alfa]
+        [else (let ([resultado (insert-new-token tablero maquina columna 0)])
+                   (if (equal? resultado empty)
+                       (set! resultado (eval tablero))
+                       (set! resultado (valor-min resultado (- nivel 1) -10000 10000 0)))
+                   (set! alfa (max alfa resultado))
+                   (if (>= alfa beta)
+                       beta
+                       (valor-max tablero nivel alfa beta (add1 columna))))]))
+
+;Fin minimax
+
+;Inicio ingreso de ficha
+
+(define (insert-new-token matrix player col i)
+    (cond
+      [(> col 6) (writeln "Columna no admitida")]
+      [(and (< i 6) (>= i 0))
+       (cond
+         [(zero?(list-ref (list-ref matrix i) col)) (change-list-value matrix i (change-list-value (list-ref matrix i) col player))]
+         [else (insert-new-token matrix player col (+ i 1))])
+       ]
+      [else empty]
+      )
+  )
+
+(define (change-list-value lista index value)
+    (cond 
+    [(empty? lista) empty]
+    [(equal? index 0) (set! lista (cdr lista)) (change-list-value  (cons value lista) (- index 1) value )]
+    [else (cons (car lista) (change-list-value (cdr lista) (- index 1) value))]
+    )
+)
+
+;Fin de ingreso de ficha
+
+;Inicio Funcion Eval
+
+(define (eval tablero)
+  (- (sumar-pesos 0 0 maquina 0 tablero)
+     (sumar-pesos 0 0 jugador 0 tablero)))
+
+(define (sumar-pesos fila columna turno peso tablero)
+  (cond [(and (= fila 5) (= columna 7)) peso]
+        [(and (< fila 5) (= columna 7)) (sumar-pesos (add1 fila) 0 turno peso tablero)]
+        [else (if (< columna 4) (set! peso (+ peso (peso-fila fila columna turno tablero)))
+                                empty)
+              (if (< fila 3) (set! peso (+ peso (peso-columna fila columna turno tablero)))
+                             empty)
+              (if (and (< fila 3) (> columna 2))
+                  (set! peso (+ peso (peso-diagonal-izq fila columna turno tablero)))
+                  empty)
+              (if (and (< fila 3) (< columna 4))
+                  (set! peso (+ peso (peso-diagonal-der fila columna turno tablero)))
+                  empty)
+              (sumar-pesos fila (add1 columna) turno peso tablero)]))
+
+(define (peso-fila fila columna turno nodo)
+  (if (not(equal? (list-ref (list-ref nodo fila) columna) turno))
+      0
+      (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 1)) turno))
+          (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 1)) 0))
+              0
+              (if (and (equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno)
+                       (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno))
+                  100
+                  0))
+          (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno))
+              (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) 0))
+                  0
+                  (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
+                      100
+                      10))
+              (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
+                  1000
+                  (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) 0)
+                      100
+                      0))))))
+
+(define (peso-columna fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) columna) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) columna) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) turno)
+                10000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) 0)
+                    1000
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) columna) 0)
+                    10
+                    0))
+        0)
+     0))
+
+(define (peso-diagonal-izq fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) (- columna 1)) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) turno)
+                1000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) 0)
+                    100
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) 0)
+                    10
+                    0))
+        0)
+     0))
+
+(define (peso-diagonal-der fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) (+ columna 1)) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) turno)
+                1000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) 0)
+                    100
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) 0)
+                    10
+                    0))
+        0)
+     0))
+
+;Fin funcion eval
