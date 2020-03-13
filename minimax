@@ -1,28 +1,34 @@
 #lang racket
 
 (define maquina 1)
-(define jugador 2)
+(define persona 2)
 (define altura 4)
-(define alfa -10000)
-(define beta 10000)
 (define maximo -10000)
 (define mejor-columna -1)
 
-(define matriz (list (list 1 1 0 0 0 0 0)
-                     (list 2 0 0 0 0 0 0)
-                     (list 2 0 0 0 0 0 0)
-                     (list 2 0 0 0 0 0 0)
+(define matriz (list (list 0 2 2 1 2 0 0)
+                     (list 0 2 0 0 2 0 0)
+                     (list 0 0 0 0 2 0 0)
+                     (list 0 0 0 0 0 0 0)
                      (list 0 0 0 0 0 0 0)
                      (list 0 0 0 0 0 0 0)))
+
+;Inico de jugar, turnos siempre = 42
+
+(define (jugar-maquina)
+  (set! maximo -1000000)
+  (set! mejor-columna -1)
+  (set! matriz (insert-new-token matriz maquina (minimax matriz 0 0) 0)));)
+
+;fin jugar
 
 ;Inicio minimax
 
 (define (minimax tablero max-actual columna)
   (cond [(> columna 6)
              mejor-columna]
-        [else (if (equal? (inicio) "max")
-              (set! max-actual (valor-max (insert-new-token tablero maquina columna 0) altura -10000 10000 0))
-              (set! max-actual (valor-min (insert-new-token tablero maquina columna 0) altura -10000 10000 0)))
+        [else (set! max-actual (valor-max (insert-new-token tablero maquina columna 0) altura -10000 10000 0))
+              (writeln max-actual)
               (cond [(> max-actual maximo)
                      (set! maximo max-actual)
                      (set! mejor-columna columna)
@@ -35,12 +41,12 @@
       "min"))
 
 (define (valor-min tablero nivel alfa beta columna)
-  (cond [(equal? nivel 0)
+  (cond [(or (equal? nivel 0) (>= (sumar-pesos 0 0 maquina 0 tablero) 100000))
          (eval tablero)]
         [(> columna 6)
          beta]
         [else (let ([resultado 0])
-                (set! resultado (insert-new-token tablero jugador columna 0))
+                (set! resultado (insert-new-token tablero persona columna 0))
                 (if (equal? resultado empty)
                     (set! resultado (eval tablero))
                     (set! resultado (valor-max resultado (- nivel 1) -10000 10000 0)))
@@ -50,7 +56,7 @@
                     (valor-min tablero nivel alfa beta (add1 columna))))]))
 
 (define (valor-max tablero nivel alfa beta columna)
-  (cond [(equal? nivel 0)
+  (cond [(or (equal? nivel 0) (>= (sumar-pesos 0 0 persona 0 tablero) 100000))
          (eval tablero)]
         [(> columna 6)
          alfa]
@@ -93,7 +99,7 @@
 
 (define (eval tablero)
   (- (sumar-pesos 0 0 maquina 0 tablero)
-     (sumar-pesos 0 0 jugador 0 tablero)))
+     (sumar-pesos 0 0 persona 0 tablero)))
 
 (define (sumar-pesos fila columna turno peso tablero)
   (cond [(and (= fila 5) (= columna 7)) peso]
@@ -102,6 +108,8 @@
                                 empty)
               (if (< fila 3) (set! peso (+ peso (peso-columna fila columna turno tablero)))
                              empty)
+              (if (> columna 2) (set! peso (+ peso (peso-fila-inv fila columna turno tablero)))
+                  empty)
               (if (and (< fila 3) (> columna 2))
                   (set! peso (+ peso (peso-diagonal-izq fila columna turno tablero)))
                   empty)
@@ -118,18 +126,40 @@
               0
               (if (and (equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno)
                        (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno))
-                  100
+                  1000
                   0))
           (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno))
               (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) 0))
                   0
                   (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
-                      100
+                      1000
                       10))
               (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
-                  1000
+                  100000
                   (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) 0)
-                      100
+                      1000
+                      0))))))
+
+(define (peso-fila-inv fila columna turno nodo)
+  (if (not(equal? (list-ref (list-ref nodo fila) columna) turno))
+      0
+      (if (not(equal? (list-ref (list-ref nodo fila) (- columna 1)) turno))
+          (if (not(equal? (list-ref (list-ref nodo fila) (- columna 1)) 0))
+              0
+              (if (and (equal? (list-ref (list-ref nodo fila) (- columna 2)) turno)
+                       (equal? (list-ref (list-ref nodo fila) (- columna 3)) turno))
+                  1000
+                  0))
+          (if (not(equal? (list-ref (list-ref nodo fila) (- columna 2)) turno))
+              (if (not(equal? (list-ref (list-ref nodo fila) (- columna 2)) 0))
+                  0
+                  (if (equal? (list-ref (list-ref nodo fila) (- columna 3)) turno)
+                      1000
+                      10))
+              (if (equal? (list-ref (list-ref nodo fila) (- columna 3)) turno)
+                  100000
+                  (if (equal? (list-ref (list-ref nodo fila) (- columna 3)) 0)
+                      1000
                       0))))))
 
 (define (peso-columna fila columna turno nodo)
@@ -137,7 +167,7 @@
      (if(equal? (list-ref (list-ref nodo (+ fila 1)) columna) turno)
         (if (equal? (list-ref (list-ref nodo (+ fila 2)) columna) turno)
             (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) turno)
-                10000
+                100000
                 (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) 0)
                     1000
                     0))
@@ -152,9 +182,9 @@
      (if(equal? (list-ref (list-ref nodo (+ fila 1)) (- columna 1)) turno)
         (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) turno)
             (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) turno)
-                1000
+                100000
                 (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) 0)
-                    100
+                    1000
                     0))
             (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) 0)
                     10
@@ -167,9 +197,9 @@
      (if(equal? (list-ref (list-ref nodo (+ fila 1)) (+ columna 1)) turno)
         (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) turno)
             (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) turno)
-                1000
+                100000
                 (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) 0)
-                    100
+                    1000
                     0))
             (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) 0)
                     10
