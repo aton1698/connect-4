@@ -1,0 +1,346 @@
+#lang racket
+
+; Instituto Tecnológico de Costa Rica
+; I Semestre 2020
+; Inteligencia artificial
+; Conecta 4
+; Desarollado por Kevin Segura y Brandon Oviedo
+
+
+;Librerias necesarias para interfaz gráfica del tablero
+(require graphics/graphics)(open-graphics)
+(require racket/gui )
+
+(define h 0) ;Variable para dibujar las lineas verticales del tablero
+
+(define maquina 1)
+(define persona 2)
+(define altura 4)
+(define maximo -10000)
+(define mejor-columna -1)
+(define col-jugador 0) ;guarda la columna en la que el jugador solicita insertar una ficha
+
+(define tiempos-maquina '()) ;Lista para almacenar los tiempos en cada turno que juega la máquina
+(define tiempo-inicio 0) ; Variable para guardar el tiempo en el que inicia la jugada la máquina
+
+(define juega-primero 1) ;Guarda la desición del jugador para saber quién juega primero
+
+;Matriz sobre la que se va a realizar el juego
+(define matriz (list (list 0 0 0 0 0 0 0)
+                     (list 0 0 0 0 0 0 0)
+                     (list 0 0 0 0 0 0 0)
+                     (list 0 0 0 0 0 0 0)
+                     (list 0 0 0 0 0 0 0)
+                     (list 0 0 0 0 0 0 0)))
+
+;Se define en canvas (ventana) donde se va a dibujar el tablero, se le da un tamaño proporcional con la matriz
+(define canvas (open-viewport "CONECTA 4" (*(length (list-ref matriz 0))100) (*(length matriz)100)))
+
+
+;Función que dado una posición i j y un valor (jugador) colocan una ficha gráficamente en la misma posición en que en la matriz lógica
+(define (dibujar-casilla canvas i j valor)-
+  
+  (cond
+    [(= valor 1)((draw-solid-ellipse canvas)(make-posn (* j 100) (* i 100)) 100 100 "red")]
+    [(= valor 2)((draw-solid-ellipse canvas)(make-posn (* j 100) (* i 100)) 100 100 "yellow")]
+    [else (display "")]
+  )  
+)
+
+
+;Función que recorre una matriz e imprime fichas de colores en el lugar donde se encuentre una ficha de un jugador o de la máquina
+(define (dibujar-matriz matriz-imprimir)
+ 
+  (for ([h (in-range 0 (*(length (list-ref matriz-imprimir 0))100) 100)])
+    ((draw-line canvas) (make-posn h 10) (make-posn h (- (*(length (list-ref matriz-imprimir 0))100) 1)) "black")) ;Se dibujan las lineas verticales en el tablero gráfico
+  
+  (define i 0)
+  (define j 0)
+  
+  (for-each
+    (lambda (fila)
+      (for-each 
+        (lambda (valor)
+          ;Dibuja una ficha
+          (dibujar-casilla canvas i j valor)
+          (set! j (+ j 1)) 
+        )
+        fila
+      )
+      (set! i (+ i 1))
+      (set! j 0)
+    )
+    matriz-imprimir
+  )
+)
+
+
+;FUnción que hace las llamadas a las funciones necesarias para que la máquina pueda realizar una jugada
+(define (jugar-maquina)
+  
+  (set! maximo -1000000)
+  (set! mejor-columna -1)
+  ;(set! tiempo-inicio (current-inexact-milliseconds))
+  (set! matriz (insert-new-token matriz maquina (minimax matriz 0 0) 0)) ;Se llaman las funciones para que la máquina tome la decisión de jugada e iserte la ficha
+  ;(set! tiempos-maquina (cons (- (current-inexact-milliseconds) tiempo-inicio) tiempos-maquina)) ;Se realiza la resta de los tiempos de finalización y de inicio
+  ;(writeln "tiempos")
+  ;(writeln (reverse tiempos-maquina))
+
+  (dibujar-matriz (reverse matriz)));)
+
+
+;Función que solicita una jugada al humano e inserta la ficha en el tablero en la columna que el humano ha ingresado
+(define (jugada-humano)
+  (solicitar-jugada)
+  (cond
+    [(or (not(number? col-jugador)) (> col-jugador 7) (< col-jugador 1) ) (solicitar-jugada)]
+    [else (set! matriz (insert-new-token matriz persona (- col-jugador 1) 0)) (dibujar-matriz (reverse matriz))])
+  );)
+
+;Solicita la jugada al humano
+(define (solicitar-jugada)
+  (writeln " ** Ingresa la columna en la que desea jugar escribiendo el número de la columna [1, 7]")
+  (set! col-jugador (read))
+  (if (or (not(number? col-jugador)) (> col-jugador 7) (< col-jugador 1) )
+      (solicitar-jugada)
+      col-jugador)
+  )
+
+;Le pide al usuario que seleccione si el primero en jugar es la máquina o la persona
+(define (seleccionar-turno)
+  (writeln "*** Selecionar turno ***")
+  (writeln "> Escriba 1 para que en el primer turno juege la máquina")
+  (writeln "> Para que inicie el humano, presione cualquier otra tecla")
+  (if (equal? (read) 1)
+      1
+      2)
+  )
+
+;Función que se encarga de iniciar el juego
+(define (rutina-juego turnos)
+  (dibujar-matriz (reverse matriz))
+  (turno 0 (seleccionar-turno))
+  );Final de la funcion de jugada
+
+
+;Función que ejecuta las jugadas turno por turno y se detiene apenas alguien gana o se empata
+(define (turno i jugador)
+  (cond [(= (ganar i) 1)
+         (writeln "**** Ganá la maquina ****")]
+        [(= (ganar i) 2)
+         (writeln "**** Gano el jugador ****")]
+        [(= (ganar i) 3)
+         (writeln "**** Empate ****")]
+        [(equal? jugador 1)
+         (jugar-maquina)
+         (turno (+ i 1) 2)]
+        [else (jugada-humano)
+              (turno (+ i 1) 1)]))
+
+
+;Inicio minimax
+;Implementación del algoritmo minimax a nuestra interpretación
+(define (minimax tablero max-actual columna)
+  (cond [(> columna 6)
+             mejor-columna]
+        [(equal? (insert-new-token tablero maquina columna 0) empty)
+             (minimax tablero max-actual (add1 columna))]
+        [else (set! max-actual (valor-min (insert-new-token tablero maquina columna 0) altura -10000 10000 0))
+              (cond [(> max-actual maximo)
+                     (set! maximo max-actual)
+                     (set! mejor-columna columna)
+                     (minimax tablero max-actual (add1 columna))]
+                    [else (minimax tablero max-actual (add1 columna))])]))
+
+;Función que determina el valor min del recorrido del minimax
+(define (valor-min tablero nivel alfa beta columna)
+  (cond [(or (equal? nivel 0) (>= (sumar-pesos 0 0 maquina 0 tablero) 100000))
+         (eval tablero)]
+        [(> columna 6)
+         beta]
+        [else (let ([resultado 0])
+                (set! resultado (insert-new-token tablero persona columna 0))
+                (if (equal? resultado empty)
+                    (set! resultado (eval tablero))
+                    (set! resultado (valor-max resultado (- nivel 1) -10000 10000 0)))
+                (set! beta (min beta resultado))
+                (if (>= alfa beta)
+                    alfa
+                    (valor-min tablero nivel alfa beta (add1 columna))))]))
+
+;Función que determina el valor max del recorrido del minimax
+(define (valor-max tablero nivel alfa beta columna)
+  (cond [(or (equal? nivel 0) (>= (sumar-pesos 0 0 persona 0 tablero) 100000))
+         (eval tablero)]
+        [(> columna 6)
+         alfa]
+        [else (let ([resultado (insert-new-token tablero maquina columna 0)])
+                   (if (equal? resultado empty)
+                       (set! resultado (eval tablero))
+                       (set! resultado (valor-min resultado (- nivel 1) -10000 10000 0)))
+                   (set! alfa (max alfa resultado))
+                   (if (>= alfa beta)
+                       beta
+                       (valor-max tablero nivel alfa beta (add1 columna))))]))
+
+;Fin minimax
+
+
+
+;Función que inserta una ficha en el tablero, para esto cambia la lista entera de la matriz sistituyendo
+;también su valor (de 0 al valor correspondiente
+;al asigando al jugador del momento. Si la columna está llena, retorna una lista vacía
+(define (insert-new-token matrix player col i)
+    (cond
+      [(> col 6) (writeln "Columna no admitida")]
+      [(and (< i 6) (>= i 0))
+       (cond
+         [(zero?(list-ref (list-ref matrix i) col)) (change-list-value matrix i (change-list-value (list-ref matrix i) col player))]
+         [else (insert-new-token matrix player col (+ i 1))])
+       ]
+      [else empty]
+      )
+  )
+
+;Función que dada una lista, un indice y un valor sustituye el valor dado en el indice de la lista
+(define (change-list-value lista index value)
+    (cond 
+    [(empty? lista) empty]
+    [(equal? index 0) (set! lista (cdr lista)) (change-list-value  (cons value lista) (- index 1) value )]
+    [else (cons (car lista) (change-list-value (cdr lista) (- index 1) value))]
+    )
+)
+
+;Función que ve el estado actual del tablero e indica si ya se termino la partida por gane o empate
+(define (ganar turno)
+  (cond [(= turno 42)
+         3]
+        [(>= (sumar-pesos 0 0 maquina 0 matriz) 100000)
+         1]
+        [(>= (sumar-pesos 0 0 persona 0 matriz) 100000)
+         2]
+        [else 0]))
+
+;Fin de ingreso de ficha
+
+;Inición Funcion Eval
+;Función que evalua el peso del tablero que le ingreso, según la heuristica realizada
+(define (eval tablero)
+  (- (sumar-pesos 0 0 maquina 0 tablero)
+     (sumar-pesos 0 0 persona 0 tablero)))
+
+;Función que determina el peso de las jugadas de uno de los dos jugadores
+(define (sumar-pesos fila columna turno peso tablero)
+  (cond [(and (= fila 5) (= columna 7)) peso]
+        [(and (< fila 5) (= columna 7)) (sumar-pesos (add1 fila) 0 turno peso tablero)]
+        [else (if (< columna 4) (set! peso (+ peso (peso-fila fila columna turno tablero)))
+                                empty)
+              (if (< fila 3) (set! peso (+ peso (peso-columna fila columna turno tablero)))
+                             empty)
+              (if (> columna 2) (set! peso (+ peso (peso-fila-inv fila columna turno tablero)))
+                  empty)
+              (if (and (< fila 3) (> columna 2))
+                  (set! peso (+ peso (peso-diagonal-izq fila columna turno tablero)))
+                  empty)
+              (if (and (< fila 3) (< columna 4))
+                  (set! peso (+ peso (peso-diagonal-der fila columna turno tablero)))
+                  empty)
+              (sumar-pesos fila (add1 columna) turno peso tablero)]))
+
+;Determina el peso de la jugada de izquierda a derecha desde una ficha indicada
+(define (peso-fila fila columna turno nodo)
+  (if (not(equal? (list-ref (list-ref nodo fila) columna) turno))
+      0
+      (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 1)) turno))
+          (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 1)) 0))
+              0
+              (if (and (equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno)
+                       (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno))
+                  1000
+                  0))
+          (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) turno))
+              (if (not(equal? (list-ref (list-ref nodo fila) (+ columna 2)) 0))
+                  0
+                  (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
+                      1000
+                      10))
+              (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) turno)
+                  100000
+                  (if (equal? (list-ref (list-ref nodo fila) (+ columna 3)) 0)
+                      1000
+                      0))))))
+
+;Determina el peso de la jugada de derecha a izquierda desde una ficha indicada
+(define (peso-fila-inv fila columna turno nodo)
+  (if (not(equal? (list-ref (list-ref nodo fila) columna) turno))
+      0
+      (if (not(equal? (list-ref (list-ref nodo fila) (- columna 1)) turno))
+          (if (not(equal? (list-ref (list-ref nodo fila) (- columna 1)) 0))
+              0
+              (if (and (equal? (list-ref (list-ref nodo fila) (- columna 2)) turno)
+                       (equal? (list-ref (list-ref nodo fila) (- columna 3)) turno))
+                  1000
+                  0))
+          (if (not(equal? (list-ref (list-ref nodo fila) (- columna 2)) turno))
+              (if (not(equal? (list-ref (list-ref nodo fila) (- columna 2)) 0))
+                  0
+                  (if (equal? (list-ref (list-ref nodo fila) (- columna 3)) turno)
+                      1000
+                      10))
+              (if (equal? (list-ref (list-ref nodo fila) (- columna 3)) turno)
+                  100000
+                  (if (equal? (list-ref (list-ref nodo fila) (- columna 3)) 0)
+                      1000
+                      0))))))
+
+;Determina el peso de la jugada en la columna desde una ficha indicada
+(define (peso-columna fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) columna) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) columna) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) turno)
+                100000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) columna) 0)
+                    1000
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) columna) 0)
+                    10
+                    0))
+        0)
+     0))
+
+;Determina el peso de la diagonal izquierda desde una ficha indicada
+(define (peso-diagonal-izq fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) (- columna 1)) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) turno)
+                100000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) (- columna 3)) 0)
+                    1000
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) (- columna 2)) 0)
+                    10
+                    0))
+        0)
+     0))
+
+;Determina el peso de la diagonal derecha desde una ficha indicada
+(define (peso-diagonal-der fila columna turno nodo)
+  (if(equal? (list-ref (list-ref nodo fila) columna) turno)
+     (if(equal? (list-ref (list-ref nodo (+ fila 1)) (+ columna 1)) turno)
+        (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) turno)
+            (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) turno)
+                100000
+                (if (equal? (list-ref (list-ref nodo (+ fila 3)) (+ columna 3)) 0)
+                    1000
+                    0))
+            (if (equal? (list-ref (list-ref nodo (+ fila 2)) (+ columna 2)) 0)
+                    10
+                    0))
+        0)
+     0))
+
+;Fin funcion eval
+;ejecución del juego
+(rutina-juego 0)
