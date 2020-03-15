@@ -94,6 +94,7 @@
   (solicitar-jugada)
   (cond
     [(or (not(number? col-jugador)) (> col-jugador 7) (< col-jugador 1) ) (solicitar-jugada)]
+    [(empty? (insert-new-token matriz persona (- col-jugador 1) 0)) (writeln " *** JUGADA NO VÁLIDA")(jugada-humano)]
     [else (set! matriz (insert-new-token matriz persona (- col-jugador 1) 0)) (dibujar-matriz (reverse matriz))])
   );)
 
